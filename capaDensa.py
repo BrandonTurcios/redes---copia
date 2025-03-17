@@ -30,16 +30,20 @@ class ReLU:
         return gradiente_entrada
         
 class Softmax:
-    def forward(self, x: np.array, y_true: np.array):
-        exp_x = np.exp(x - np.max(x, axis=1, keepdims=True))  
-        self.y_pred = exp_x / np.sum(exp_x, axis=1, keepdims=True)  
-        self.y_true = y_true 
-        self.salida = -np.sum(y_true * np.log(self.y_pred + 1e-7)) / y_true.shape[0] 
-        return self.salida
+    def forward(self, x: np.array):
+        exp = np.exp(x - np.max(x, axis=1, keepdims=True))
+        sum_exp = np.sum(exp, axis=1, keepdims=True)
+        return exp / (sum_exp + 1e-9)
 
-    def backward(self):
-        gradiente_entrada = (self.y_pred - self.y_true) / self.y_true.shape[0] 
-        return gradiente_entrada
+    def backward(self, grad_output, outputs):
+        return grad_output * outputs * (1 - outputs)
+
+class CrossEntropyLoss:
+     def forward(self, y_true, y_pred):
+        return -np.mean(np.sum(y_true * np.log(y_pred + 1e-9), axis=1))
+
+     def backward(self, y_true, y_pred):
+        return y_pred-y_true
 
 
 class one_hot:

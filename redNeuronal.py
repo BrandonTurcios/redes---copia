@@ -40,12 +40,13 @@ num_classes = 10
 capa1 = cp.capaDensa(784, 128)  
 relu1 = cp.ReLU() 
 capa_salida = cp.capaDensa(128, 10) 
-softmax_loss = cp.Softmax()  
+softmax = cp.Softmax()  
+cross_entropy = cp.CrossEntropyLoss()  # Ahora la pérdida se calcula aparte
 perdidas_por_epoca = []
 precisiones_por_epoca = []
 
 for epoch in range(num_epochs):
-    print(f"epoch {epoch + 1}/{num_epochs}")
+    print(f"Epoch {epoch + 1}/{num_epochs}")
     perdida_epoch = 0
     precision_epoch = 0
     num_batches = 0
@@ -56,28 +57,37 @@ for epoch in range(num_epochs):
 
         one_hot_labels = cp.one_hot.one_hot_encode(etiquetas_lote, num_classes)
 
+        # Forward Pass
         capa1.forward(imagenes_lote)
         relu1.forward(capa1.salida)
         capa_salida.forward(relu1.salida)
-        perdida = softmax_loss.forward(capa_salida.salida, one_hot_labels)
+        y_pred = softmax.forward(capa_salida.salida)  # Softmax solo calcula probabilidades
+        print("Salida Softmax:", y_pred[:5])  # Muestra algunas predicciones
 
-        precision = calc_precision(softmax_loss.y_pred, one_hot_labels)
+        perdida = cross_entropy.forward(y_pred, one_hot_labels)  # Cross-Entropy calcula la pérdida
+
+        # Cálculo de precisión y pérdida
+        precision = calc_precision(y_pred, one_hot_labels)
         perdida_epoch += perdida
         precision_epoch += precision
         num_batches += 1
 
-        gradiente_loss = softmax_loss.backward()
-        gradiente_capa_salida = capa_salida.backward(gradiente_loss)
+        # Backpropagation
+        gradiente_loss = cross_entropy.backward(y_pred, one_hot_labels)  # Gradiente de la pérdida
+        gradiente_softmax = softmax.backward(gradiente_loss, y_pred)  # Pasar y_pred también
+        gradiente_capa_salida = capa_salida.backward(gradiente_softmax)
         gradiente_relu = relu1.backward(gradiente_capa_salida)
         gradiente_capa1 = capa1.backward(gradiente_relu)
+
+        # Actualización de pesos
         capa1.update(tasa_aprendizaje)
         capa_salida.update(tasa_aprendizaje)
 
+    # Promedios de pérdida y precisión por época
     perdida_promedio = perdida_epoch / num_batches
     precision_promedio = precision_epoch / num_batches
-
 
     perdidas_por_epoca.append(perdida_promedio)
     precisiones_por_epoca.append(precision_promedio)
 
-    print(f"perrdida: {perdida_promedio:.4f}, precisioon: {precision_promedio:.4f}")
+    print(f"Pérdida: {perdida_promedio:.4f}, Precisión: {precision_promedio:.4f}")
