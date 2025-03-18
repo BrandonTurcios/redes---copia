@@ -31,19 +31,25 @@ class ReLU:
         
 class Softmax:
     def forward(self, x: np.array):
-        exp = np.exp(x - np.max(x, axis=1, keepdims=True))
+        exp = np.exp(x - np.max(x, axis=1, keepdims=True))  # Evitar overflow
         sum_exp = np.sum(exp, axis=1, keepdims=True)
-        return exp / (sum_exp + 1e-9)
+        return exp / (sum_exp + 1e-9)  # Pequeño valor para estabilidad numérica
 
     def backward(self, grad_output, outputs):
-        return grad_output * outputs * (1 - outputs)
+        return grad_output  # La simplificación elimina la necesidad de calcular la jacobiana
+
+
 
 class CrossEntropyLoss:
-     def forward(self, y_true, y_pred):
-        return -np.mean(np.sum(y_true * np.log(y_pred + 1e-9), axis=1))
+    def forward(self, y_pred, y_true):
+        batch_size = y_pred.shape[0]
+        loss = -np.sum(y_true * np.log(y_pred + 1e-9)) / batch_size  # Evitar log(0)
+        return loss
 
-     def backward(self, y_true, y_pred):
-        return y_pred-y_true
+    def backward(self, y_pred, y_true):
+        batch_size = y_pred.shape[0]
+        return (y_pred - y_true) / batch_size  # Derivada simplificada
+
 
 
 class one_hot:

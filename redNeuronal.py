@@ -4,6 +4,7 @@ import sys
 import MnistDataset as MnistDs
 import capaDensa as cp
 
+# Función para verificar si los archivos existen
 def checkFileExists(root_dir: str, files: list[str]) -> bool:
     root_dir_path = Path(root_dir)
     for file in files:
@@ -13,6 +14,7 @@ def checkFileExists(root_dir: str, files: list[str]) -> bool:
             return False
     return True
 
+# Configuración del dataset
 dataset_path = "dataset"
 train_images_file = "train-images-idx3-ubyte"
 train_labels_file = "train-labels-idx1-ubyte"
@@ -27,24 +29,30 @@ train_labels_path = ds_folder_path / train_labels_file
 mnist_train = MnistDs.MnistDataset()
 mnist_train.load(train_images_path, train_labels_path)
 
+# Función para calcular precisión
 def calc_precision(y_pred, y_true):
     predicciones = np.argmax(y_pred, axis=1)
     etiquetas = np.argmax(y_true, axis=1)
     return np.mean(predicciones == etiquetas)
 
+# Hiperparámetros
 batch_size = 64
-num_epochs = 100
+num_epochs = 50
 tasa_aprendizaje = 0.1
 num_classes = 10
 
-capa1 = cp.capaDensa(784, 128)  
-relu1 = cp.ReLU() 
-capa_salida = cp.capaDensa(128, 10) 
-softmax = cp.Softmax()  
-cross_entropy = cp.CrossEntropyLoss()  # Ahora la pérdida se calcula aparte
+# Capas de la red
+capa1 = cp.capaDensa(784, 128)
+relu1 = cp.ReLU()
+capa_salida = cp.capaDensa(128, 10)
+softmax = cp.Softmax()
+cross_entropy = cp.CrossEntropyLoss()
+
+# Listas para almacenar métricas
 perdidas_por_epoca = []
 precisiones_por_epoca = []
 
+# Bucle de entrenamiento
 for epoch in range(num_epochs):
     print(f"Epoch {epoch + 1}/{num_epochs}")
     perdida_epoch = 0
@@ -54,28 +62,24 @@ for epoch in range(num_epochs):
     for i in range(0, len(mnist_train.images), batch_size):
         imagenes_lote = mnist_train.images[i:i + batch_size]
         etiquetas_lote = mnist_train.labels[i:i + batch_size]
-
         one_hot_labels = cp.one_hot.one_hot_encode(etiquetas_lote, num_classes)
 
         # Forward Pass
         capa1.forward(imagenes_lote)
         relu1.forward(capa1.salida)
         capa_salida.forward(relu1.salida)
-        y_pred = softmax.forward(capa_salida.salida)  # Softmax solo calcula probabilidades
-        print("Salida Softmax:", y_pred[:5])  # Muestra algunas predicciones
+        y_pred = softmax.forward(capa_salida.salida)
 
-        perdida = cross_entropy.forward(y_pred, one_hot_labels)  # Cross-Entropy calcula la pérdida
-
-        # Cálculo de precisión y pérdida
+        # Cálculo de pérdida y precisión
+        perdida = cross_entropy.forward(y_pred, one_hot_labels)
         precision = calc_precision(y_pred, one_hot_labels)
         perdida_epoch += perdida
         precision_epoch += precision
         num_batches += 1
 
-        # Backpropagation
-        gradiente_loss = cross_entropy.backward(y_pred, one_hot_labels)  # Gradiente de la pérdida
-        gradiente_softmax = softmax.backward(gradiente_loss, y_pred)  # Pasar y_pred también
-        gradiente_capa_salida = capa_salida.backward(gradiente_softmax)
+        # Backward Pass con la simplificación de softmax y cross-entropy
+        gradiente_loss = cross_entropy.backward(y_pred, one_hot_labels)
+        gradiente_capa_salida = capa_salida.backward(gradiente_loss)  # No se necesita backward de Softmax
         gradiente_relu = relu1.backward(gradiente_capa_salida)
         gradiente_capa1 = capa1.backward(gradiente_relu)
 
